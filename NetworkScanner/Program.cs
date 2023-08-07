@@ -17,7 +17,7 @@ namespace NetworkScanner
             Information,
             Notify
         }
-        public static bool Debug = true;
+        public static bool Debug = false;
         static void Main(string[] args)
         {
             if ((args.Contains("--help") || args.Contains("-h") || args.Length == 0) && Debug == false)
@@ -28,9 +28,12 @@ namespace NetworkScanner
 
             var address = "127.0.0.1";
             var maxThreads = 2000;
-            string portRange = "135,139,445,8080";
-            if (args.Length > 1) {
+            string portRange = "1-1000";
+            if (args.Length > 0) {
                 address = args[0];
+            }
+            if (args.Length > 1)
+            {
                 portRange = args[1];
             }
             List<string> validAddresses = new List<string>();
