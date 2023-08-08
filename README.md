@@ -7,8 +7,8 @@ The purpose of this tool is to act as a network discovery scanner, but as a stat
 
 ## Usage
 
-Default Values, these however can be overriden:
-`ip_addr` = 127.0.0.1
+Default Values, these however can be overriden: \
+`ip_addr` = 127.0.0.1 \
 `port` = 1-1000
 
 `./NetworkScanner.exe ip_addr[/mask] [port|port,port|port-port]`
