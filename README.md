@@ -7,9 +7,9 @@ The purpose of this tool is to act as a network discovery scanner, but as a stat
 
 ## Usage
 
-`./NetworkScanner.exe ip_address [options]`
+`./NetworkScanner.exe ip_address [options]` 
 
-Options \
+### Options
 `--help,-h` - Displays the help text \
 `-p[1-65535]` - [DEFAULT: 1-1000] Supplies a port range for scanning. Accepts a range (#-#), single port (#), or comma seperated (#,#,#) \
 `-pN` - Perform a portscan without caring about ping replies. \
