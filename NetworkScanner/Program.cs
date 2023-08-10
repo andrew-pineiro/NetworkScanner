@@ -29,7 +29,7 @@ namespace NetworkScanner
                     $"--help,-h       Displays this help message.\n" +
                     $"-pN             Perform a portscan without caring about ping replies.\n" +
                     $"-p[1-65535]     [DEFAULT: 1-1000] Supplies a port range for scanning. Accepts a range (#-#), single port (#), or comma seperated (#,#,#)\n" +
-                    $"/[24...31]       Supplies a subnet mask for ip range scanning.\n"
+                    $"/[24...31]      Supplies a subnet mask for ip range scanning.\n"
                     , MessageType.None);
                 return;
             }
