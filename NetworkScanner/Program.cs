@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,42 +16,69 @@ namespace NetworkScanner
         {
             Error,
             Information,
-            Notify
+            Notify,
+            None
         }
         public static bool Debug = false;
         static void Main(string[] args)
         {
-            if ((args.Contains("--help") || args.Contains("-h") || args.Length == 0) && Debug == false)
+            if (args.Contains("--help") || args.Contains("-h") || (args.Length == 0 && Debug == false))
             {
-                OutputMessage($"Syntax: .\\{AppDomain.CurrentDomain.FriendlyName} ip_address[/mask] [[port,port][port-port]]", MessageType.Error);
+                OutputMessage($"SYNTAX\n\n.\\{AppDomain.CurrentDomain.FriendlyName}.exe ip_address [options]\n\n" +
+                    $"OPTIONS\n\n" +
+                    $"--help,-h       Displays this help message.\n" +
+                    $"-pN             Perform a portscan without caring about ping replies.\n" +
+                    $"-p[1-65535]     [DEFAULT: 1-1000] Supplies a port range for scanning. Accepts a range (#-#), single port (#), or comma seperated (#,#,#)\n" +
+                    $"/[24...31]       Supplies a subnet mask for ip range scanning.\n"
+                    , MessageType.None);
                 return;
             }
 
-            var address = "127.0.0.1";
+            var address = string.Empty;
             var maxThreads = 2000;
+            var mask = 0;
             string portRange = "1-1000";
+            bool considerPing = true;
+            //arg parsing
             if (args.Length > 0) {
-                address = args[0];
+                foreach(var arg in args)
+                {
+                    if (IPAddress.TryParse(arg, out _))
+                    {
+                        address = arg;
+                    } else 
+                    if (Regex.IsMatch(arg, "^-p\\d"))
+                    {
+                        portRange = arg.Substring(2);
+                    } else 
+                    if (arg == "-pN")
+                    {
+                        considerPing = false;
+                    } else 
+                    if (arg.StartsWith('/'))
+                    {
+                        mask = Convert.ToInt32(arg.Substring(1));
+                    }
+                }
             }
-            if (args.Length > 1)
+            if(string.IsNullOrEmpty(address))
             {
-                portRange = args[1];
+                OutputMessage("Invalid IP address supplied.", MessageType.Error);
+                return;
             }
             List<string> validAddresses = new List<string>();
-            if (address.Contains("/"))
+            if (mask > 0)
             {
-                var mask = address.Split('/')[1];
-                address = address.Split('/')[0];
                 var ipCount = mask switch
                 {
-                    "24" => 255,
-                    "25" => 128,
-                    "26" => 64,
-                    "27" => 32,
-                    "28" => 16,
-                    "29" => 8,
-                    "30" => 4,
-                    "31" => 2,
+                    24 => 255,
+                    25 => 128,
+                    26 => 64,
+                    27 => 32,
+                    28 => 16,
+                    29 => 8,
+                    30 => 4,
+                    31 => 2,
                     _ => 0
                 };
                 if(ipCount == 0)
@@ -76,9 +104,9 @@ namespace NetworkScanner
             {
                 SendPing(address);
             }
-            OutputMessage($"{ValidIPs.Count()} total active IPs found. Checking port range {portRange} for each", MessageType.Information);
-            if(portRange.Length > 0 && ValidIPs.Count > 0)
+            if(portRange.Length > 0 && (ValidIPs.Count > 0 || considerPing == false))
             {
+                OutputMessage($"{ValidIPs.Count()} total active IPs found. Recursively checking for open port(s): {portRange}", MessageType.Information);
                 var ports = new List<int>();
                 try
                 {
