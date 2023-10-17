@@ -1,56 +1,50 @@
 ﻿using System.Diagnostics;
 using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
+using NetworkScanner.Tools;
+using NetworkScanner.Utils;
 
 namespace NetworkScanner
 {
     internal class Program
     {
         public static List<string> ValidIPs { get; set; } = new List<string>();
-        enum MessageType
-        {
-            Error,
-            Information,
-            Notify,
-            None
-        }
         public static bool Debug = false;
+
+        private static string IP { get; set; } = string.Empty;
+        private static string PortRange { get; set; } = "1-1000";
+
         static void Main(string[] args)
         {
             if (args.Contains("--help") || args.Contains("-h") || (args.Length == 0 && Debug == false))
             {
-                OutputMessage($"SYNTAX\n\n.\\{AppDomain.CurrentDomain.FriendlyName}.exe ip_address [options]\n\n" +
-                    $"OPTIONS\n\n" +
-                    $"--help,-h       Displays this help message.\n" +
-                    $"-pN             Perform a portscan without caring about ping replies.\n" +
-                    $"-p[1-65535]     [DEFAULT: 1-1000] Supplies a port range for scanning. Accepts a range (#-#), single port (#), or comma seperated (#,#,#)\n" +
-                    $"/[24...31]      Supplies a subnet mask for ip range scanning.\n"
-                    , MessageType.None);
+                Output.DisplayHelp();
                 return;
             }
 
-            var address = string.Empty;
-            var maxThreads = 2000;
-            var mask = 0;
-            string portRange = "1-1000";
+            //default settings
+            const int maxThreads = 2000;
+            int mask = 0;
             bool considerPing = true;
+            bool singleIP = false;
+
             //arg parsing
             if (args.Length > 0) {
                 foreach(var arg in args)
                 {
                     if (IPAddress.TryParse(arg, out _))
                     {
-                        address = arg;
+                        IP = arg;
                     } else 
-                    if (Regex.IsMatch(arg, "^-p\\d"))
+                    if (Regex.IsMatch(arg, "^-p\\d.+"))
                     {
-                        portRange = arg.Substring(2);
+                        PortRange = arg[2..];
                     } else 
+                    if (arg == "-d" || arg == "--debug")
+                    {
+                        Debug = true;
+                        Output.Message("Debugging has been enabled.", Output.MessageType.Debug);
+                    } else
                     if (arg == "-pN")
                     {
                         considerPing = false;
@@ -58,12 +52,19 @@ namespace NetworkScanner
                     if (arg.StartsWith('/'))
                     {
                         mask = Convert.ToInt32(arg.Substring(1));
+                    } else
+                    if (arg.Contains('/'))
+                    {
+                        if (IPAddress.TryParse(arg.Split('/')[0], out _)) {
+                            IP = arg.Split('/')[0];
+                            mask = Convert.ToInt32(arg.Split('/')[1]);
+                        }
                     }
                 }
             }
-            if(string.IsNullOrEmpty(address))
+            if(string.IsNullOrEmpty(IP))
             {
-                OutputMessage("Invalid IP address supplied.", MessageType.Error);
+                Output.Message("Invalid IP address supplied.", Output.MessageType.Error);
                 return;
             }
             List<string> validAddresses = new List<string>();
@@ -83,37 +84,48 @@ namespace NetworkScanner
                 };
                 if(ipCount == 0)
                 {
-                   OutputMessage("Invalid subnet mask supplied. [Range 24-31]", MessageType.Error);
+                   Output.Message("Invalid subnet mask supplied. [Range 24-31]", Output.MessageType.Error);
                    return;
                 }
-                var startNum = int.Parse(address.Substring(address.LastIndexOf('.') + 1));
+                var startNum = int.Parse(IP.Substring(IP.LastIndexOf('.') + 1));
+                if(startNum == 0) { startNum = 1; }
                 for (int i=startNum; i < ipCount; i++)
                 {
-                    
-                    var workingAddress = address.Substring(0, address.LastIndexOf('.'));
+                    var workingAddress = IP.Substring(0, IP.LastIndexOf('.'));
                     workingAddress += string.Format(".{0}", Convert.ToString(i));
-                    Thread t = new Thread(() => SendPing(workingAddress));
-                    t.Start();
-                    while(Process.GetCurrentProcess().Threads.Count > maxThreads)
+                    if (considerPing)
                     {
-                        continue;
-                    }
+                        Thread t = new Thread(() => Ping.SendPing(workingAddress));
+                        t.Start();
+                        while (Process.GetCurrentProcess().Threads.Count > maxThreads)
+                        {
+                            continue;
+                        }
+                    } else { ValidIPs.Add(workingAddress); }
+
                 }
             }
             else
             {
-                SendPing(address);
+                singleIP = true;
+                if(considerPing)
+                {
+                    Ping.SendPing(IP);
+                } else { ValidIPs.Add(IP); }
             }
-            if(portRange.Length > 0 && (ValidIPs.Count > 0 || considerPing == false))
+            if(PortRange.Length > 0 && ValidIPs.Count > 0)
             {
-                OutputMessage($"{ValidIPs.Count()} total active IPs found. Recursively checking for open port(s): {portRange}", MessageType.Information);
+                if(!singleIP)
+                {
+                    Output.Message($"{ValidIPs.Count()} total IPs found. Recursively checking for open port(s): {PortRange}", Output.MessageType.Debug);
+                }
                 var ports = new List<int>();
                 try
                 {
-                    if (portRange.Contains("-"))
+                    if (PortRange.Contains('-'))
                     {
                         var bounds = new List<int>();
-                        foreach (string p in portRange.Split('-'))
+                        foreach (string p in PortRange.Split('-'))
                         {
                             bounds.Add(Convert.ToInt32(p));
                         }
@@ -122,35 +134,42 @@ namespace NetworkScanner
                             ports.Add(x);
                         }
                     }
-                    else if (portRange.Contains(","))
+                    else if (PortRange.Contains(','))
                     {
-                        foreach (string p in portRange.Split(","))
+                        foreach (string p in PortRange.Split(","))
                         {
                             ports.Add(Convert.ToInt32(p));
                         }
                     }
                     else
                     {
-                        ports.Add(Convert.ToInt32(portRange));
+                        ports.Add(Convert.ToInt32(PortRange));
                     }
                 }
                 catch (FormatException)
                 {
 
-                    OutputMessage($"Invalid port range supplied", MessageType.Error);
+                    Output.Message($"Invalid port range supplied", Output.MessageType.Error);
                     return;
                 }
+                catch (Exception e) 
+                {
+                    Output.Message(e.Message, Output.MessageType.Error);
+                    return;
+                }
+
                 if (ports.Count == 0 || (ports.Max() > 65535 || ports.Min() < 0))
                 {
-                    OutputMessage("Invalid port range supplied", MessageType.Error);
+                    Output.Message("Invalid port range supplied", Output.MessageType.Error);
                     return;
                 }
+
                 foreach (var ip in ValidIPs)
                 {
-                    OutputMessage($"Checking open ports on {ip}...", MessageType.Information);
+                    Output.Message($"Checking open ports on {ip}...", Output.MessageType.Debug);
                     foreach(var port in ports)
                     {
-                        Thread t = new Thread(() => PortCheck(IPAddress.Parse(ip), port));
+                        Thread t = new Thread(() => PortScanner.Scan(IPAddress.Parse(ip), port));
                         t.Start();
                         while (Process.GetCurrentProcess().Threads.Count > maxThreads)
                         {
@@ -162,70 +181,9 @@ namespace NetworkScanner
                 }
             }
         }
-        static void SendPing(string address)
-        {
-            Ping sender = new();
-            PingOptions options = new();
 
-            options.DontFragment = true;
+        
 
-            string data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-            byte[] buffer = Encoding.ASCII.GetBytes(data);
-            int timeout = 120;
-            PingReply reply = sender.Send(address, timeout, buffer, options);
-            if(reply.Status == IPStatus.Success)
-            {
-                ValidIPs.Add(address);
-                OutputMessage($"Successful ping reply from {address}", MessageType.Notify);
-            }   
-        }
-
-        static void PortCheck(IPAddress IP, int port)
-        {
-            IPEndPoint remote = new IPEndPoint(IP, port);
-            Socket sender = new Socket(IP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            try
-            {
-                sender.Connect(remote);
-                sender.Shutdown(SocketShutdown.Both);
-                sender.Close();
-                OutputMessage($"Port {port} is open on {IP}", MessageType.Notify);
-            } catch (SocketException)
-            {
-
-                return;
-
-            } catch (Exception e)
-            {
-                OutputMessage($"Unexpected Exception: {e}", MessageType.Error);
-                return;
-            }
-
-        }
-
-        static void OutputMessage(string message, MessageType type)
-        {
-            string symbol;
-            switch (type) {
-                case MessageType.Error:
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    symbol = "[!] ";
-                    break;
-                case MessageType.Information:
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    symbol = "[*] ";
-                    break;
-                case MessageType.Notify:
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    symbol = "[+] ";
-                    break;
-                default:
-                    symbol = "";
-                    break;
-            };
-            Console.Write(symbol);
-            Console.ResetColor();
-            Console.WriteLine(message);
-        }
+        
     }
 }
