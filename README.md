@@ -11,6 +11,7 @@ The purpose of this tool is to act as a network discovery scanner, but as a stat
 
 ### Options
 `--help,-h` - Displays the help text \
-`-p[1-65535]` - [DEFAULT: 1-1000] Supplies a port range for scanning. Accepts a range (#-#), single port (#), or comma seperated (#,#,#) \
+`-p[1-65535]` - [DEFAULT: 1-1000] Supplies a port range for scanning. Accepts a range (#-#), single port (#), or comma seperated within quotes ("#,#,#") \
 `-pN` - Perform a portscan without caring about ping replies. \
-`/[24...32]` - Supplies a subnet mask for ip range scanning.
+`/[24...32]` - Supplies a subnet mask for ip range scanning. \
+`-d, --debug` - Enables debugging messages
