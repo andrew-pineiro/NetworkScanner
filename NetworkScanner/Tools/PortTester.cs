@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NetworkScanner.Utils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -13,11 +14,16 @@ namespace NetworkScanner.Tools
         {
             try
             {
-                FtpWebRequest ftp = (FtpWebRequest) WebRequest.Create($"ftp://{host}:{port}");
+                var ftpRequest = $"ftp://{host.ToString()}:{port}/";
+                
+                Output.Message($"Testing ftp port {port} on {host} [{ftpRequest}]", Utils.Output.MessageType.Debug);
+                
+                FtpWebRequest ftp = (FtpWebRequest) WebRequest.Create(ftpRequest);
                 ftp.Method = WebRequestMethods.Ftp.ListDirectory;
-                ftp.Credentials = new NetworkCredential("anonymous", "");
+                ftp.Credentials = new NetworkCredential("anonymous", "test@email.com");
+                ftp.UsePassive = false;
                 ftp.GetResponse();
-
+                
                 return true;
             } catch
             {
