@@ -16,7 +16,7 @@ namespace NetworkScanner.Tools
             {
                 var ftpRequest = $"ftp://{host}:{port}/";
                 
-                Output.Message($"Testing ftp port {port} on {host} [{ftpRequest}]", Utils.Output.MessageType.Debug);
+                Output.Message($"Testing ftp port {port} on {host} [{ftpRequest}]", Output.MessageType.Debug);
                 
                 FtpWebRequest ftp = (FtpWebRequest) WebRequest.Create(ftpRequest);
                 ftp.Method = WebRequestMethods.Ftp.ListDirectory;
