@@ -14,7 +14,7 @@ namespace NetworkScanner.Tools
         {
             try
             {
-                var ftpRequest = $"ftp://{host.ToString()}:{port}/";
+                var ftpRequest = $"ftp://{host}:{port}/";
                 
                 Output.Message($"Testing ftp port {port} on {host} [{ftpRequest}]", Utils.Output.MessageType.Debug);
                 
