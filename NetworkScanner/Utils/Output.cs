@@ -28,11 +28,12 @@
                     symbol = "[+] ";
                     break;
                 case MessageType.Debug:
-                    if(Program.Debug)
+                    if(!Program.Debug)
                     {
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        symbol = "[*] ";
-                    } else { return; }
+                        return;
+                    }
+                    Console.ForegroundColor = ConsoleColor.Magenta;
+                    symbol = "[*] ";
                     break;
                 default:
                     symbol = "";
@@ -44,14 +45,15 @@
         }
         public static void DisplayHelp()
         {
-            Output.Message($"SYNTAX\n\n.\\{AppDomain.CurrentDomain.FriendlyName}.exe ip_address [options]\n\n" +
+            Message($"SYNTAX\n\n.\\{AppDomain.CurrentDomain.FriendlyName}.exe ip_address [options]\n\n" +
                     $"OPTIONS\n\n" +
                     $"--help,-h       Displays this help message.\n" +
                     $"-pN             Perform a portscan without caring about ping replies.\n" +
                     $"-d, --debug     Enables debugging for the application session.\n" +
                     $"-p[1-65535]     [DEFAULT: 1-1000] Supplies a port range for scanning. Accepts a range (#-#), single port (#), or comma seperated (\"#,#,#\")\n" +
-                    $"/[24...31]      Supplies a subnet mask for ip range scanning.\n"
-                    , Output.MessageType.None);
+                    $"/[24...31]      Supplies a subnet mask for ip range scanning.\n" +
+                    $"-A              Enabled Aggressive Mode\n"
+                    , MessageType.None);
         }
     }
 }

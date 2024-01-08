@@ -9,10 +9,13 @@ namespace NetworkScanner
     internal class Program
     {
         public static List<string> ValidIPs { get; set; } = new List<string>();
+
         public static bool Debug = false;
 
+        //default global settings
         private static string IP { get; set; } = string.Empty;
         private static string PortRange { get; set; } = "1-1000";
+        private static bool Aggressive { get; set; } = false;
 
         static void Main(string[] args)
         {
@@ -22,7 +25,7 @@ namespace NetworkScanner
                 return;
             }
 
-            //default settings
+            //default local settings
             const int maxThreads = 2000;
             int mask = 0;
             bool considerPing = true;
@@ -30,28 +33,32 @@ namespace NetworkScanner
 
             //arg parsing
             if (args.Length > 0) {
+                if(args.Contains("-d") || args.Contains("--debug"))
+                {
+                    Debug = true;
+                    Output.Message("Debugging has been enabled.", Output.MessageType.Debug);
+                }
                 foreach(var arg in args)
                 {
                     if (IPAddress.TryParse(arg, out _))
                     {
                         IP = arg;
+                        Output.Message($"Host IP Address Found: {IP}", Output.MessageType.Debug);
                     } else 
                     if (Regex.IsMatch(arg, "^-p\\d.+"))
                     {
                         PortRange = arg[2..];
+                        Output.Message($"Port Range Found: {PortRange}", Output.MessageType.Debug);
                     } else 
-                    if (arg == "-d" || arg == "--debug")
-                    {
-                        Debug = true;
-                        Output.Message("Debugging has been enabled.", Output.MessageType.Debug);
-                    } else
                     if (arg == "-pN")
                     {
                         considerPing = false;
+                        Output.Message("Ping Procedures Skipped", Output.MessageType.Debug);
                     } else 
                     if (arg.StartsWith('/'))
                     {
                         mask = Convert.ToInt32(arg.Substring(1));
+                        Output.Message($"Subnet Mask Identified: {mask}", Output.MessageType.Debug);
                     } else
                     if (arg.Contains('/'))
                     {
@@ -59,6 +66,12 @@ namespace NetworkScanner
                             IP = arg.Split('/')[0];
                             mask = Convert.ToInt32(arg.Split('/')[1]);
                         }
+                        Output.Message($"Stripped IP and Mask: {IP} & {mask}", Output.MessageType.Debug);
+                    } else
+                    if (arg == "-A")
+                    {
+                        Aggressive = true;
+                        Output.Message("Aggressive scanning enabled.", Output.MessageType.Debug);
                     }
                 }
             }
@@ -169,7 +182,7 @@ namespace NetworkScanner
                     Output.Message($"Checking open ports on {ip}...", Output.MessageType.Debug);
                     foreach(var port in ports)
                     {
-                        Thread t = new Thread(() => PortScanner.Scan(IPAddress.Parse(ip), port));
+                        Thread t = new Thread(() => PortScanner.Scan(IPAddress.Parse(ip), port, Aggressive));
                         t.Start();
                         while (Process.GetCurrentProcess().Threads.Count > maxThreads)
                         {
